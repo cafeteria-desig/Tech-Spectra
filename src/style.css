@@ -652,10 +652,25 @@ img {
     padding 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.wallet-card:hover .wallet-card-body {
+.wallet-card:hover .wallet-card-body,
+.wallet-card.expanded .wallet-card-body {
   max-height: 250px;
   opacity: 1;
   padding: 0 28px 24px;
+}
+
+.wallet-card.expanded .wallet-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+.wallet-card.expanded {
+  border-color: var(--accent);
+  box-shadow: 0 4px 40px var(--accent-glow), 0 0 0 1px rgba(26, 107, 255, 0.15);
+}
+
+.wallet-card.expanded .wallet-card-title {
+  color: var(--accent);
 }
 
 .wallet-desc {
@@ -1505,6 +1520,7 @@ img {
     transition: all 0.3s ease;
     pointer-events: none;
     border-bottom: 1px solid var(--border-subtle);
+    z-index: 1000;
   }
 
   .nav-links.open {
@@ -1513,15 +1529,24 @@ img {
     pointer-events: auto;
   }
 
+  /* Bigger touch targets for mobile nav */
   .nav-link {
     width: 100%;
     text-align: center;
-    padding: 14px;
-    font-size: 1rem;
+    padding: 16px;
+    font-size: 1.05rem;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .nav-toggle {
     display: flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
   }
 
   .nav-logo-text {
@@ -1533,8 +1558,38 @@ img {
     letter-spacing: 2px;
   }
 
+  /* Wallet cards — disable hover expand on touch, rely on tap-to-toggle */
+  .wallet-card:hover .wallet-card-body {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 18px;
+  }
+
+  .wallet-card:hover {
+    transform: none;
+    border-color: var(--border-subtle);
+    box-shadow: none;
+  }
+
+  .wallet-card:hover .wallet-card-title {
+    color: var(--text-primary);
+  }
+
+  .wallet-card:hover .wallet-chevron {
+    transform: none;
+    color: var(--text-muted);
+  }
+
+  /* .expanded class still works on mobile */
+  .wallet-card.expanded .wallet-card-body {
+    max-height: 300px;
+    opacity: 1;
+    padding: 0 18px 20px;
+  }
+
   .wallet-card-header {
     padding: 16px 18px;
+    min-height: 56px;
   }
 
   .wallet-card-title {
@@ -1545,29 +1600,84 @@ img {
     display: none;
   }
 
-  .wallet-card:hover .wallet-card-body {
-    padding: 0 18px 20px;
-  }
-
   .wallet-card-body {
     padding: 0 18px;
+  }
+
+  /* Form inputs — bigger touch targets */
+  .form-group input,
+  .form-group select {
+    padding: 16px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    min-height: 50px;
   }
 
   .form-row {
     grid-template-columns: 1fr;
   }
 
+  /* Event checkboxes — bigger touch targets */
   .events-checkboxes {
     grid-template-columns: 1fr;
   }
 
+  .event-checkbox {
+    padding: 16px;
+    min-height: 52px;
+  }
+
+  .checkbox-indicator {
+    width: 26px;
+    height: 26px;
+  }
+
+  .checkbox-label {
+    font-size: 0.95rem;
+  }
+
+  /* Seat grid — make it scrollable horizontally */
+  .seat-grid-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+  }
+
   .seat-grid {
-    max-width: 280px;
-    gap: 8px;
+    min-width: 600px;
+    max-width: 600px;
+    gap: 6px;
   }
 
   .seat {
     font-size: 0.65rem;
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  /* Upload zone — friendlier on mobile */
+  .upload-zone {
+    padding: 28px 16px;
+  }
+
+  /* CTA button — larger touch target */
+  .cta-button {
+    padding: 16px 36px;
+    font-size: 0.95rem;
+    min-height: 52px;
+  }
+
+  /* Event cards */
+  .event-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .event-register-link,
+  .event-rulebook-link {
+    padding: 14px 20px;
+    text-align: center;
+    justify-content: center;
+    min-height: 48px;
   }
 
   .footer-inner {
@@ -1586,17 +1696,74 @@ img {
   .page {
     padding: 20px 16px 80px;
   }
+
+  /* Contact page inputs */
+  .contact-form input,
+  .contact-form textarea {
+    font-size: 16px;
+    min-height: 50px;
+  }
+
+  .contact-form textarea {
+    min-height: 120px;
+  }
+
+  /* Step indicator for multi-step form */
+  .step-indicators {
+    gap: 6px;
+  }
+
+  /* Admin page */
+  .admin-page {
+    padding: 20px 12px 80px;
+  }
+
+  .admin-toolbar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin-toolbar-left,
+  .admin-toolbar-right {
+    width: 100%;
+  }
+
+  .admin-toolbar-btn {
+    flex: 1;
+    justify-content: center;
+    min-height: 44px;
+  }
 }
 
 @media (max-width: 480px) {
+  .hero-section {
+    padding: 80px 16px 40px;
+  }
+
   .hero-title {
     font-size: 1.8rem;
     letter-spacing: 3px;
   }
 
+  .hero-logo-container {
+    width: clamp(200px, 60vw, 300px);
+    height: clamp(200px, 60vw, 300px);
+  }
+
+  .hero-content {
+    gap: 14px;
+  }
+
+  .hero-tagline {
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+  }
+
   .cta-button {
     padding: 14px 28px;
     font-size: 0.9rem;
+    width: 100%;
+    justify-content: center;
   }
 
   .event-full-card {
@@ -1605,6 +1772,61 @@ img {
 
   .modal-content {
     padding: 32px 20px;
+  }
+
+  /* Seat grid on very small screens */
+  .seat-grid {
+    min-width: 480px;
+    gap: 4px;
+  }
+
+  .seat {
+    font-size: 0.55rem;
+    border-radius: 4px;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+    letter-spacing: 2px;
+  }
+
+  .intro-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .intro-content p {
+    font-size: 0.95rem;
+  }
+
+  .page-header {
+    margin-bottom: 40px;
+  }
+
+  .page-header p {
+    font-size: 1rem;
+  }
+
+  /* Wallet cards extra compact */
+  .wallet-card-header {
+    padding: 14px 16px;
+  }
+
+  .wallet-card.expanded .wallet-card-body {
+    padding: 0 16px 16px;
+  }
+
+  .wallet-card-body {
+    padding: 0 16px;
+  }
+
+  /* Admin stats */
+  .admin-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .admin-stat-card {
+    padding: 16px 12px;
   }
 }
 
@@ -2466,6 +2688,7 @@ img {
     flex: 1;
     justify-content: center;
     text-align: center;
+    min-height: 44px;
   }
 
   .admin-controls {
@@ -2476,6 +2699,11 @@ img {
     min-width: 100%;
   }
 
+  .admin-search-input {
+    font-size: 16px;
+    min-height: 48px;
+  }
+
   .admin-filter-group {
     width: 100%;
     justify-content: stretch;
@@ -2484,8 +2712,9 @@ img {
   .admin-filter-btn {
     flex: 1;
     text-align: center;
-    font-size: 0.7rem;
-    padding: 10px 12px;
+    font-size: 0.75rem;
+    padding: 12px 12px;
+    min-height: 44px;
   }
 
   .admin-table td,

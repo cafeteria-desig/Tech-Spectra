@@ -50,7 +50,7 @@ export function renderContact(): HTMLElement {
       </div>
       <div class="contact-text">
         <h4>Location</h4>
-        <p>Lachoo Memorial College of Science & Technology,<br/>Sector-A, Shastri Nagar, Jodhpur, Rajasthan</p>
+        <p>Faculty of Engineering, Lachoo Memorial College of Science & Technology,<br/>Sector-A, Shastri Nagar, Jodhpur, Rajasthan</p>
       </div>
     </div>
   `;

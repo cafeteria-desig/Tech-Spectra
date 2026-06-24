@@ -156,10 +156,11 @@ export function renderHome(): HTMLElement {
     };
   }
 
-  const taglineText = "The Future of Work in the Age of AI";
+  const taglineText = "TechSpectra 2026\nThe Nexus of Ideas and Technology";
   const taglineHTML = taglineText
     .split('')
     .map((char, index) => {
+      if (char === '\n') return '<br/>';
       const displayChar = char === ' ' ? '&nbsp;' : char;
       return `<span class="tagline-char" style="transition-delay: ${index * 30 + 1000}ms">${displayChar}</span>`;
     })
@@ -180,17 +181,13 @@ export function renderHome(): HTMLElement {
       <p class="hero-techfest">TECH FEST</p>
       <p class="hero-tagline">${taglineHTML}</p>
       <p class="hero-date">29–30 June 2026</p>
-      <p class="hero-organised">Organised by <strong>Lachoo Memorial College of Science &amp; Technology</strong></p>
+      <p class="hero-organised">Organised by <strong>Faculty of Engineering, Lachoo Memorial College of Science &amp; Technology</strong></p>
       <a href="#" data-page="register" class="cta-button">
         <span>Register Now</span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M5 12h14M12 5l7 7-7 7"/>
         </svg>
       </a>
-    </div>
-    <div class="hero-scroll-indicator">
-      <span>Scroll to explore</span>
-      <div class="scroll-arrow"></div>
     </div>
   `;
 
@@ -210,7 +207,6 @@ export function renderHome(): HTMLElement {
     hero.querySelector('.hero-date')?.classList.add('reveal-active');
     hero.querySelector('.hero-organised')?.classList.add('reveal-active');
     hero.querySelector('.cta-button')?.classList.add('reveal-active');
-    hero.querySelector('.hero-scroll-indicator')?.classList.add('reveal-active');
   }, 1000);
 
   // Setup interactive logo canvas
@@ -521,7 +517,7 @@ export function renderHome(): HTMLElement {
         Tech Spectra is a two-day techno-cultural extravaganza celebrating
         the intersection of technology, creativity, and human potential. From
         coding battles to street plays, from cinematic storytelling to
-        entrepreneurial pitches — experience the future of work in the age of AI.
+        entrepreneurial pitches — experience the nexus of ideas and technology.
       </p>
     </div>
   `;
@@ -562,6 +558,15 @@ export function renderHome(): HTMLElement {
         </div>
       </div>
     `;
+
+    // Tap-to-toggle for mobile: clicking the header expands/collapses
+    const header = card.querySelector('.wallet-card-header')!;
+    header.addEventListener('click', (e) => {
+      // Don't toggle if user clicked a link inside the body
+      if ((e.target as HTMLElement).closest('a[data-page]')) return;
+      card.classList.toggle('expanded');
+    });
+
     wallet.appendChild(card);
   }
 

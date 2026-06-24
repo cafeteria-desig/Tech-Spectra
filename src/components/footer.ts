@@ -6,10 +6,10 @@ export function renderFooter(): HTMLElement {
       <div class="footer-brand">
         <img src="/logo.png" alt="Tech Spectra" class="footer-logo" />
         <h3>Tech Spectra</h3>
-        <p class="footer-tagline">The Future of Work in the Age of AI</p>
+        <p class="footer-tagline">TechSpectra 2026 &middot; The Nexus of Ideas and Technology</p>
       </div>
       <div class="footer-college">
-        <p>Lachoo Memorial College of Science & Technology</p>
+        <p>Faculty of Engineering, Lachoo Memorial College of Science & Technology</p>
         <p class="footer-dates">29–30 June 2026</p>
       </div>
     </div>
