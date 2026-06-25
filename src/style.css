@@ -430,6 +430,56 @@ img {
   font-weight: 600;
 }
 
+.hero-collaboration {
+  opacity: 0;
+  transform: translateY(20px);
+  will-change: transform, opacity;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1) 0.35s, transform 1s cubic-bezier(0.16, 1, 0.3, 1) 0.35s;
+}
+
+.hero-collaboration.reveal-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.collab-text {
+  color: var(--text-muted);
+  font-size: clamp(0.68rem, 0.8vw, 0.75rem);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 500;
+}
+
+.collab-logo-wrapper {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(26, 107, 255, 0.12);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.collab-logo-wrapper:hover {
+  border-color: rgba(26, 107, 255, 0.35);
+  box-shadow: 0 6px 24px rgba(26, 107, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.collab-logo {
+  height: clamp(32px, 4.5vw, 42px);
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
 .hero-scroll-indicator {
   position: absolute;
   bottom: 40px;

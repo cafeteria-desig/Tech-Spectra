@@ -182,6 +182,12 @@ export function renderHome(): HTMLElement {
       <p class="hero-tagline">${taglineHTML}</p>
       <p class="hero-date">29–30 June 2026</p>
       <p class="hero-organised">Organised by <strong>Faculty of Engineering, Lachoo Memorial College of Science &amp; Technology</strong></p>
+      <div class="hero-collaboration">
+        <span class="collab-text">in collaboration with</span>
+        <div class="collab-logo-wrapper">
+          <img src="/sin-logo.jpg" alt="SIN School of AI" class="collab-logo" />
+        </div>
+      </div>
       <a href="#" data-page="register" class="cta-button">
         <span>Register Now</span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -206,6 +212,7 @@ export function renderHome(): HTMLElement {
     hero.querySelector('.hero-tagline')?.classList.add('reveal-active');
     hero.querySelector('.hero-date')?.classList.add('reveal-active');
     hero.querySelector('.hero-organised')?.classList.add('reveal-active');
+    hero.querySelector('.hero-collaboration')?.classList.add('reveal-active');
     hero.querySelector('.cta-button')?.classList.add('reveal-active');
   }, 1000);
 
