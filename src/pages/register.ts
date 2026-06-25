@@ -487,6 +487,19 @@ async function renderForm(): Promise<HTMLElement> {
       `,
       ).join('')}
     </div>
+    
+    <div class="audience-divider" style="margin: 20px 0; text-align: center; position: relative;">
+      <span style="background: #0a0a0a; padding: 0 15px; color: var(--text-secondary); font-size: 0.9rem; position: relative; z-index: 1;">OR</span>
+      <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border-subtle); z-index: 0;"></div>
+    </div>
+    
+    <div class="audience-section" style="text-align: center;">
+      <button type="button" id="audience-btn" class="cta-button" style="background: transparent; border: 1px solid var(--border-glow); color: var(--text-primary); padding: 10px 20px; font-size: 0.95rem; width: 100%; max-width: 300px; margin: 0 auto; display: block; transition: all 0.3s ease;">
+        <span>Register as Audience</span>
+      </button>
+      <p id="audience-note" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px; display: none;">You are registering as an audience member. Competition entries are disabled.</p>
+    </div>
+    
     <div id="problems-container"></div>
     <span class="form-error" id="events-error"></span>
   `;
@@ -765,6 +778,65 @@ async function renderForm(): Promise<HTMLElement> {
   });
 
   // Event checkboxes
+  const audienceBtn = eventsSection.querySelector('#audience-btn') as HTMLButtonElement;
+  const audienceNote = eventsSection.querySelector('#audience-note') as HTMLElement;
+  const checkboxes = eventsSection.querySelectorAll('.event-checkbox input') as NodeListOf<HTMLInputElement>;
+
+  const updateAudienceUI = () => {
+    const isAudience = formState.selectedEvents.includes('Audience');
+    if (isAudience) {
+      if (audienceBtn) {
+        audienceBtn.innerHTML = '<span>Switch to Competitions</span>';
+        audienceBtn.style.background = 'rgba(26, 107, 255, 0.15)';
+        audienceBtn.style.borderColor = 'var(--border-glow)';
+        audienceBtn.style.boxShadow = '0 0 15px rgba(26, 107, 255, 0.2)';
+      }
+      if (audienceNote) audienceNote.style.display = 'block';
+      
+      checkboxes.forEach((cb) => {
+        cb.checked = false;
+        cb.disabled = true;
+        const parentLabel = cb.closest('.event-checkbox') as HTMLElement;
+        if (parentLabel) {
+          parentLabel.classList.add('disabled');
+          parentLabel.style.opacity = '0.5';
+          parentLabel.style.cursor = 'not-allowed';
+        }
+      });
+    } else {
+      if (audienceBtn) {
+        audienceBtn.innerHTML = '<span>Register as Audience</span>';
+        audienceBtn.style.background = 'transparent';
+        audienceBtn.style.borderColor = 'var(--border-glow)';
+        audienceBtn.style.boxShadow = 'none';
+      }
+      if (audienceNote) audienceNote.style.display = 'none';
+      
+      checkboxes.forEach((cb) => {
+        cb.disabled = false;
+        const parentLabel = cb.closest('.event-checkbox') as HTMLElement;
+        if (parentLabel) {
+          parentLabel.classList.remove('disabled');
+          parentLabel.style.opacity = '1';
+          parentLabel.style.cursor = 'pointer';
+        }
+        cb.checked = formState.selectedEvents.includes(cb.value);
+      });
+    }
+    renderProblemInputs();
+  };
+
+  audienceBtn?.addEventListener('click', () => {
+    const isAudience = formState.selectedEvents.includes('Audience');
+    if (isAudience) {
+      formState.selectedEvents = [];
+    } else {
+      formState.selectedEvents = ['Audience'];
+      clearError('events-error');
+    }
+    updateAudienceUI();
+  });
+
   form.querySelectorAll('.event-checkbox input').forEach((cb) => {
     cb.addEventListener('change', (e) => {
       const input = e.target as HTMLInputElement;
@@ -804,6 +876,9 @@ async function renderForm(): Promise<HTMLElement> {
 
   // Initial ID Card uploads container render
   renderIdCardUploads(formState.teamSize);
+
+  // Initialize audience registration UI state
+  updateAudienceUI();
 
   // Load seats
   loadSeats();
