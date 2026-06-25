@@ -3,10 +3,22 @@ import type { Registration } from '../types';
 import { navigate } from '../router';
 import { stopParticles, startParticles } from '../particles';
 
+type FilterType =
+  | 'all'
+  | 'day1'
+  | 'day2'
+  | 'Prompt War'
+  | 'Hackathon'
+  | 'Nukkad Natak (Street Play)'
+  | 'Short Movie'
+  | 'Shark Tank'
+  | 'Instrumental Singing'
+  | 'Audience';
+
 let registrations: Registration[] = [];
 let filteredRegistrations: Registration[] = [];
 let searchQuery = '';
-let currentFilter: 'all' | 'day1' | 'day2' = 'all';
+let currentFilter: FilterType = 'all';
 let isLoading = true;
 let idCardModalActive = false;
 
@@ -30,7 +42,7 @@ function getEventDay(eventName: string): number {
 function applyFilters(): void {
   let filtered = registrations;
 
-  // Event day filter
+  // Event day or specific competition/audience filter
   if (currentFilter === 'day1') {
     filtered = filtered.filter((r) =>
       r.events_selected.some((e) => getEventDay(e) === 1),
@@ -38,6 +50,10 @@ function applyFilters(): void {
   } else if (currentFilter === 'day2') {
     filtered = filtered.filter((r) =>
       r.events_selected.some((e) => getEventDay(e) === 2),
+    );
+  } else if (currentFilter !== 'all') {
+    filtered = filtered.filter((r) =>
+      r.events_selected.includes(currentFilter),
     );
   }
 
@@ -58,8 +74,11 @@ function applyFilters(): void {
 }
 
 function exportCSV(): void {
-  const data = filteredRegistrations.length > 0 ? filteredRegistrations : registrations;
-  if (data.length === 0) return;
+  const data = filteredRegistrations;
+  if (data.length === 0) {
+    alert('No registrations found for the current filter to export.');
+    return;
+  }
 
   // CSV escape: wrap in quotes and double-quote any internal quotes
   const esc = (val: string | undefined | null): string => {
@@ -473,26 +492,58 @@ function renderSearchAndFilters(): HTMLElement {
 
   const filterGroup = document.createElement('div');
   filterGroup.className = 'admin-filter-group';
+  filterGroup.style.display = 'flex';
+  filterGroup.style.alignItems = 'center';
+  filterGroup.style.gap = '10px';
 
-  const filters: { value: typeof currentFilter; label: string }[] = [
-    { value: 'all', label: 'All' },
+  const filterSelect = document.createElement('select');
+  filterSelect.id = 'admin-filter-select';
+  filterSelect.className = 'admin-filter-select';
+  filterSelect.style.cssText = `
+    background: rgba(10, 10, 10, 0.8);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    color: var(--text-primary);
+    padding: 10px 15px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-glow);
+  `;
+
+  const options: { value: FilterType; label: string }[] = [
+    { value: 'all', label: 'All Registrations' },
     { value: 'day1', label: 'Day 1 Events' },
     { value: 'day2', label: 'Day 2 Events' },
+    { value: 'Prompt War', label: 'Prompt War' },
+    { value: 'Hackathon', label: 'Hackathon' },
+    { value: 'Nukkad Natak (Street Play)', label: 'Nukkad Natak (Street Play)' },
+    { value: 'Short Movie', label: 'Short Movie' },
+    { value: 'Shark Tank', label: 'Shark Tank' },
+    { value: 'Instrumental Singing', label: 'Instrumental Singing' },
+    { value: 'Audience', label: 'Audience Spectators' }
   ];
 
-  filters.forEach((f) => {
-    const btn = document.createElement('button');
-    btn.className = `admin-filter-btn${currentFilter === f.value ? ' active' : ''}`;
-    btn.textContent = f.label;
-    btn.dataset.filter = f.value;
-    btn.addEventListener('click', () => {
-      currentFilter = f.value;
-      searchQuery = searchInput.value;
-      applyFilters();
-      refreshContent();
-    });
-    filterGroup.appendChild(btn);
+  options.forEach((opt) => {
+    const optionEl = document.createElement('option');
+    optionEl.value = opt.value;
+    optionEl.textContent = opt.label;
+    optionEl.selected = currentFilter === opt.value;
+    optionEl.style.background = '#0a0a0a';
+    optionEl.style.color = '#ffffff';
+    filterSelect.appendChild(optionEl);
   });
+
+  filterSelect.addEventListener('change', (e) => {
+    currentFilter = (e.target as HTMLSelectElement).value as FilterType;
+    searchQuery = searchInput.value;
+    applyFilters();
+    refreshContent();
+  });
+
+  filterGroup.appendChild(filterSelect);
 
   controls.appendChild(searchWrapper);
   controls.appendChild(filterGroup);
