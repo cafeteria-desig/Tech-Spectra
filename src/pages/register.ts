@@ -388,6 +388,12 @@ function showSuccessModal(): void {
       <h2>Registration Confirmed!</h2>
       <p>Welcome to Tech Spectra — 29th & 30th June 2026</p>
       <p class="modal-seat">Your Seat(s): <strong>${seatsText}</strong></p>
+      
+      <div style="margin: 15px 0; padding: 12px; background: rgba(26, 107, 255, 0.05); border: 1px solid var(--border-glow); border-radius: 8px; text-align: center;">
+        <p style="color: var(--text-primary); font-weight: 600; margin: 0 0 6px 0; font-size: 0.95rem;">⚠️ Please Remember your Seat Number!</p>
+        <p style="color: var(--text-secondary); font-size: 0.88rem; margin: 0; line-height: 1.4;">You must positively bring your college ID card with you on the days of the events.</p>
+      </div>
+      
       <p class="modal-email">A confirmation has been sent to ${formState.email}</p>
       <button class="cta-button modal-close-btn">
         <span>Got it!</span>
