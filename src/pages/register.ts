@@ -402,9 +402,9 @@ async function handleSubmit(e: Event): Promise<void> {
       }
       throw err;
     }
-  } catch (err) {
-    const msg =
-      err instanceof Error ? err.message : 'An unexpected error occurred.';
+  } catch (err: any) {
+    console.error("Registration Error", err);
+    const msg = err?.message || (typeof err === 'string' ? err : 'An unexpected error occurred.');
     showError('submit-error', msg);
     if (submitBtn) {
       submitBtn.disabled = false;

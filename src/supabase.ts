@@ -138,7 +138,7 @@ export async function submitRegistration(
     if (error) throw error;
   } catch (err) {
     console.error('Failed to submit registration:', err);
-    throw new Error('Registration failed. Please try again.');
+    throw err;
   }
 }
 
