@@ -3,6 +3,7 @@ import {
   uploadIdCard,
   checkSeatAvailability,
   submitRegistration,
+  submitTeamRegistration,
   supabase,
 } from '../supabase';
 import { EVENTS, SEAT_ROWS, SEAT_COLS, TOTAL_SEATS } from '../config';
@@ -321,57 +322,50 @@ async function handleSubmit(e: Event): Promise<void> {
       }
     }
 
-    // Upload ID cards for all members in parallel
-    const uploadPromises = formState.idCards.map((file, idx) => {
-      const safeEmail = formState.email.trim();
-      return uploadIdCard(file!, `${safeEmail}_member_${idx + 1}`);
-    });
-    const idCardUrls = await Promise.all(uploadPromises);
-
-    // Submit registration
-    if (formState.registrationType === 'single') {
-      await submitRegistration({
-        full_name: formState.fullName.trim(),
-        college_name: formState.collegeName.trim(),
-        email: formState.email.trim(),
-        phone: formState.phone.trim(),
-        id_card_url: idCardUrls[0],
-        events_selected: formState.selectedEvents,
-        seat_number: formState.selectedSeats[0],
-        hackathon_problem: formState.selectedEvents.includes('Hackathon') ? formState.hackathonProblem.trim() : undefined,
-        shark_tank_problem: formState.selectedEvents.includes('Shark Tank') ? formState.sharkTankProblem.trim() : undefined,
+    let idCardUrls: string[] = [];
+    try {
+      // Upload ID cards for all members in parallel
+      const uploadPromises = formState.idCards.map((file, idx) => {
+        const safeEmail = formState.email.trim();
+        return uploadIdCard(file!, `${safeEmail}_member_${idx + 1}`);
       });
-    } else {
-      // 1. Insert into teams table
-      const teamPayload = {
-        team_name: formState.teamName.trim(),
-        leader_name: formState.fullName.trim(),
-        leader_email: formState.email.trim(),
-        leader_phone: formState.phone.trim(),
-        college_name: formState.collegeName.trim(),
-        events_selected: formState.selectedEvents,
-        hackathon_problem: formState.selectedEvents.includes('Hackathon') ? formState.hackathonProblem.trim() : undefined,
-        shark_tank_problem: formState.selectedEvents.includes('Shark Tank') ? formState.sharkTankProblem.trim() : undefined,
-      };
+      idCardUrls = await Promise.all(uploadPromises);
+    } catch (uploadErr) {
+      throw uploadErr;
+    }
 
-      const { data: teamData, error: teamError } = await supabase
-        .from('teams')
-        .insert([teamPayload])
-        .select('id')
-        .single();
+    try {
+      // Submit registration
+      if (formState.registrationType === 'single') {
+        await submitRegistration({
+          full_name: formState.fullName.trim(),
+          college_name: formState.collegeName.trim(),
+          email: formState.email.trim(),
+          phone: formState.phone.trim(),
+          id_card_url: idCardUrls[0],
+          events_selected: formState.selectedEvents,
+          seat_number: formState.selectedSeats[0],
+          hackathon_problem: formState.selectedEvents.includes('Hackathon') ? formState.hackathonProblem.trim() : undefined,
+          shark_tank_problem: formState.selectedEvents.includes('Shark Tank') ? formState.sharkTankProblem.trim() : undefined,
+        });
+      } else {
+        // 1. Prepare team details
+        const teamPayload = {
+          team_name: formState.teamName.trim(),
+          leader_name: formState.fullName.trim(),
+          leader_email: formState.email.trim(),
+          leader_phone: formState.phone.trim(),
+          college_name: formState.collegeName.trim(),
+          events_selected: formState.selectedEvents,
+          hackathon_problem: formState.selectedEvents.includes('Hackathon') ? formState.hackathonProblem.trim() : undefined,
+          shark_tank_problem: formState.selectedEvents.includes('Shark Tank') ? formState.sharkTankProblem.trim() : undefined,
+        };
 
-      if (teamError) throw teamError;
-      if (!teamData) throw new Error('Failed to create team record.');
-
-      const teamId = teamData.id;
-
-      // 2. Insert members into team_members table
-      try {
+        // 2. Prepare team members
         const memberPayloads = [];
 
         // Leader is member 1
         memberPayloads.push({
-          team_id: teamId,
           member_name: formState.fullName.trim(),
           member_email: formState.email.trim(),
           id_card_url: idCardUrls[0],
@@ -381,7 +375,6 @@ async function handleSubmit(e: Event): Promise<void> {
         // Other members
         for (let i = 2; i <= formState.teamSize; i++) {
           memberPayloads.push({
-            team_id: teamId,
             member_name: (formState.teamMembers[i - 2] || '').trim(),
             member_email: formState.email.trim(),
             id_card_url: idCardUrls[i - 1],
@@ -389,20 +382,26 @@ async function handleSubmit(e: Event): Promise<void> {
           });
         }
 
-        const { error: membersError } = await supabase
-          .from('team_members')
-          .insert(memberPayloads);
-
-        if (membersError) throw membersError;
-      } catch (insertError) {
-        // Rollback: delete the team (which cascades to team_members)
-        await supabase.from('teams').delete().eq('id', teamId);
-        throw insertError;
+        await submitTeamRegistration(teamPayload, memberPayloads);
       }
-    }
 
-    // Show success modal
-    showSuccessModal();
+      // Show success modal
+      showSuccessModal();
+    } catch (err) {
+      // Clean up uploaded files if any
+      try {
+        const fileNames = idCardUrls.map(url => {
+          const parts = url.split('/');
+          return parts[parts.length - 1];
+        });
+        if (fileNames.length > 0) {
+          await supabase.storage.from('id-cards').remove(fileNames);
+        }
+      } catch (cleanErr) {
+        console.error('Failed to clean up files:', cleanErr);
+      }
+      throw err;
+    }
   } catch (err) {
     const msg =
       err instanceof Error ? err.message : 'An unexpected error occurred.';

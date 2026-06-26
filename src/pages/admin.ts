@@ -1,5 +1,5 @@
 import { getAllRegistrations, deleteRegistration, getAllTeams, deleteTeam } from '../supabase';
-import type { TeamMember } from '../types';
+import type { Registration, Team, TeamMember } from '../types';
 import { navigate } from '../router';
 import { stopParticles, startParticles } from '../particles';
 
@@ -662,12 +662,35 @@ async function loadData(): Promise<void> {
       return;
     }
 
-    const [regs, teams] = await Promise.all([
-      getAllRegistrations(),
-      getAllTeams(),
-    ]);
+    let regs: any[] = [];
+    let teams: any[] = [];
+    let regsSuccess = false;
+    let teamsSuccess = false;
 
-    const mappedRegs: AdminRow[] = regs.map((r) => ({
+    try {
+      regs = await getAllRegistrations();
+      regsSuccess = true;
+    } catch (err) {
+      console.error('Error fetching registrations:', err);
+    }
+
+    try {
+      teams = await getAllTeams();
+      teamsSuccess = true;
+    } catch (err) {
+      console.error('Error fetching teams:', err);
+    }
+
+    console.log("Registrations", regs.length);
+    console.log("Teams", teams.length);
+
+    if (!regsSuccess && !teamsSuccess) {
+      allRows = [];
+      filteredRows = [];
+      throw new Error('Could not load registrations or teams.');
+    }
+
+    const mappedRegs: AdminRow[] = (regs as Registration[]).map((r) => ({
       type: 'single',
       id: r.id!,
       display_name: r.full_name,
@@ -682,7 +705,7 @@ async function loadData(): Promise<void> {
       shark_tank_problem: r.shark_tank_problem,
     }));
 
-    const mappedTeams: AdminRow[] = teams.map((t) => ({
+    const mappedTeams: AdminRow[] = (teams as Team[]).map((t) => ({
       type: 'team',
       id: t.id!,
       display_name: `Team: ${t.team_name} (Leader: ${t.leader_name})`,
@@ -709,8 +732,6 @@ async function loadData(): Promise<void> {
     applyFilters();
   } catch (err) {
     console.error('Failed to load data:', err);
-    allRows = [];
-    filteredRows = [];
   } finally {
     isLoading = false;
     refreshContent();
