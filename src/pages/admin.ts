@@ -330,7 +330,7 @@ function renderTable(): HTMLElement {
         seatBadgeHtml = (reg.members ?? [])
           .map(m => `<span class="admin-seat-badge" style="margin: 2px;">${m.seat_number}</span>`)
           .join(' ');
-        
+
         idCardHtml = `
           <div style="display: flex; flex-direction: column; gap: 4px;">
             ${reg.members?.map(m => `
@@ -429,11 +429,15 @@ function renderTable(): HTMLElement {
             console.log("ID sent to delete:", id);
             const deleted = await deleteRegistration(id);
             console.log("Deleted?", deleted);
+            console.log("ID received by admin.ts:", id);
+            console.log("Delete function returned:", deleted);
 
             if (deleted) {
+              console.log("Before filtering:", allRows.length);
               allRows = allRows.filter(
                 (r) => !(r.type === 'single' && r.id === id)
               );
+              console.log("After filtering:", allRows.length);
 
               applyFilters();
               refreshContent();
@@ -721,7 +725,9 @@ async function loadData(): Promise<void> {
     }
 
     const mappedRegs: AdminRow[] = (regs as Registration[]).map((r) => {
-      console.log("Registration ID:", r.id);
+      console.log("Registration loaded");
+      console.log("UUID =", r.id);
+      console.log("Seat =", r.seat_number);
       return {
         type: 'single',
         id: r.id!,
