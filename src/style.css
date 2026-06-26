@@ -2377,6 +2377,30 @@ img {
   font-weight: 600;
 }
 
+.col-team {
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.admin-team-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(0, 229, 255, 0.08);
+  color: #00e5ff;
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+
+.admin-team-members {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
 .col-college {
   min-width: 160px;
 }

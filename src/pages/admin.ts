@@ -34,6 +34,24 @@ function formatDate(dateStr?: string): string {
   });
 }
 
+interface TeamInfo {
+  cleanName: string;
+  teamName: string;
+  role: string;
+}
+
+function getTeamInfo(fullName: string): TeamInfo | null {
+  const match = fullName.match(/^(.*?)\s*\(Team:\s*(.*?)\s*-\s*(Lead|Member\s*\d+)\)$/i);
+  if (match) {
+    return {
+      cleanName: match[1].trim(),
+      teamName: match[2].trim(),
+      role: match[3].trim(),
+    };
+  }
+  return null;
+}
+
 function getEventDay(eventName: string): number {
   const day1Events = ['Prompt War', 'Hackathon', 'Nukkad Natak (Street Play)'];
   return day1Events.includes(eventName) ? 1 : 2;
@@ -89,6 +107,9 @@ function exportCSV(): void {
   const headers = [
     'S.No',
     'Full Name',
+    'Team Name',
+    'Team Role',
+    'Team Members',
     'College / Institution',
     'Email',
     'Phone',
@@ -100,19 +121,53 @@ function exportCSV(): void {
     'Registered At',
   ];
 
-  const rows = data.map((r, i) => [
-    String(i + 1),
-    esc(r.full_name),
-    esc(r.college_name),
-    esc(r.email),
-    esc(r.phone),
-    esc(r.events_selected.join('; ')),
-    esc(r.seat_number),
-    esc(r.hackathon_problem),
-    esc(r.shark_tank_problem),
-    esc(r.id_card_url),
-    esc(r.registered_at ? new Date(r.registered_at).toISOString() : ''),
-  ]);
+  const rows = data.map((r, i) => {
+    const teamInfo = getTeamInfo(r.full_name);
+    let displayName = r.full_name;
+    let teamName = '';
+    let teamRole = '';
+    let teamMembers = '';
+
+    if (teamInfo) {
+      displayName = teamInfo.cleanName;
+      teamName = teamInfo.teamName;
+      teamRole = teamInfo.role;
+
+      // Find all team members belonging to this team registration
+      const members = registrations
+        .filter((other) => {
+          const otherInfo = getTeamInfo(other.full_name);
+          return (
+            otherInfo &&
+            otherInfo.teamName.toLowerCase() === teamInfo.teamName.toLowerCase() &&
+            other.email.toLowerCase() === r.email.toLowerCase()
+          );
+        })
+        .map((other) => {
+          const otherInfo = getTeamInfo(other.full_name);
+          return otherInfo ? `${otherInfo.cleanName} (${otherInfo.role})` : other.full_name;
+        });
+
+      teamMembers = members.join('; ');
+    }
+
+    return [
+      String(i + 1),
+      esc(displayName),
+      esc(teamName),
+      esc(teamRole),
+      esc(teamMembers),
+      esc(r.college_name),
+      esc(r.email),
+      esc(r.phone),
+      esc(r.events_selected.join('; ')),
+      esc(r.seat_number),
+      esc(r.hackathon_problem),
+      esc(r.shark_tank_problem),
+      esc(r.id_card_url),
+      esc(r.registered_at ? new Date(r.registered_at).toISOString() : ''),
+    ];
+  });
 
   const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join(
     '\n',
@@ -222,6 +277,7 @@ function renderTable(): HTMLElement {
     <tr>
       <th class="col-sno">#</th>
       <th class="col-name">Full Name</th>
+      <th class="col-team">Team Details</th>
       <th class="col-college">College</th>
       <th class="col-email">Email</th>
       <th class="col-phone">Phone</th>
@@ -241,7 +297,7 @@ function renderTable(): HTMLElement {
     const emptyRow = document.createElement('tr');
     emptyRow.className = 'admin-empty-row';
     emptyRow.innerHTML = `
-      <td colspan="11">
+      <td colspan="12">
         <div class="admin-empty-state">
           <span class="admin-empty-icon">📋</span>
           <p>${isLoading ? 'Loading registrations...' : 'No registrations found.'}</p>
@@ -253,6 +309,34 @@ function renderTable(): HTMLElement {
     filteredRegistrations.forEach((reg, index) => {
       const row = document.createElement('tr');
       row.className = 'admin-table-row';
+
+      const teamInfo = getTeamInfo(reg.full_name);
+      let displayName = reg.full_name;
+      let teamHtml = '<span class="admin-no-id">—</span>';
+
+      if (teamInfo) {
+        displayName = teamInfo.cleanName;
+        
+        // Get all members of the same team registration
+        const members = registrations
+          .filter((other) => {
+            const otherInfo = getTeamInfo(other.full_name);
+            return (
+              otherInfo &&
+              otherInfo.teamName.toLowerCase() === teamInfo.teamName.toLowerCase() &&
+              other.email.toLowerCase() === reg.email.toLowerCase()
+            );
+          })
+          .map((other) => {
+            const otherInfo = getTeamInfo(other.full_name);
+            return otherInfo ? `${otherInfo.cleanName} (${otherInfo.role})` : other.full_name;
+          });
+
+        teamHtml = `
+          <div class="admin-team-badge">Team: ${teamInfo.teamName} (${teamInfo.role})</div>
+          <div class="admin-team-members" title="${members.join(', ')}">${members.join(', ')}</div>
+        `;
+      }
 
       const eventsHtml = reg.events_selected
         .map((e) => `<span class="admin-event-tag event-tag-${e.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-')}">${e}</span>`)
@@ -271,7 +355,7 @@ function renderTable(): HTMLElement {
       }
 
       const idCardHtml = reg.id_card_url
-        ? `<button class="admin-id-card-btn" data-url="${reg.id_card_url}" data-name="${reg.full_name}">
+        ? `<button class="admin-id-card-btn" data-url="${reg.id_card_url}" data-name="${displayName}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
             </svg>
@@ -281,7 +365,8 @@ function renderTable(): HTMLElement {
 
       row.innerHTML = `
         <td class="col-sno">${index + 1}</td>
-        <td class="col-name"><strong>${reg.full_name}</strong></td>
+        <td class="col-name"><strong>${displayName}</strong></td>
+        <td class="col-team">${teamHtml}</td>
         <td class="col-college">${reg.college_name}</td>
         <td class="col-email"><a href="mailto:${reg.email}" class="admin-email-link">${reg.email}</a></td>
         <td class="col-phone"><a href="tel:${reg.phone}" class="admin-phone-link">${reg.phone}</a></td>
@@ -291,7 +376,7 @@ function renderTable(): HTMLElement {
         <td class="col-problems">${problemsHtml.length > 0 ? problemsHtml.join('') : '<span class="admin-no-id">—</span>'}</td>
         <td class="col-date">${formatDate(reg.registered_at)}</td>
         <td class="col-actions">
-          <button class="admin-delete-btn" data-id="${reg.id}" data-name="${reg.full_name}">
+          <button class="admin-delete-btn" data-id="${reg.id}" data-name="${displayName}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
             </svg>
