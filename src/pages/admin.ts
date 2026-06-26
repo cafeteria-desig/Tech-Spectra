@@ -250,9 +250,9 @@ function showDeleteConfirmModal(name: string, onConfirm: () => void): void {
   };
 
   overlay.querySelector('#admin-confirm-cancel')?.addEventListener('click', close);
-  overlay.querySelector('#admin-confirm-ok')?.addEventListener('click', () => {
+  overlay.querySelector('#admin-confirm-ok')?.addEventListener('click', async () => {
+    await onConfirm();
     close();
-    onConfirm();
   });
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) close();
@@ -426,31 +426,24 @@ function renderTable(): HTMLElement {
               breakdownContainerEl.appendChild(renderEventsBreakdown());
             }
           } else {
-            console.log("ID sent to delete:", id);
             const deleted = await deleteRegistration(id);
-            console.log("Deleted?", deleted);
-            console.log("ID received by admin.ts:", id);
-            console.log("Delete function returned:", deleted);
+            console.log("deleted =", deleted);
+            console.log("id =", id);
 
             if (deleted) {
-              console.log("Before filtering:", allRows.length);
-              allRows = allRows.filter(
-                (r) => !(r.type === 'single' && r.id === id)
-              );
-              console.log("After filtering:", allRows.length);
-
+              await loadData();
               applyFilters();
               refreshContent();
 
-              // Re-render stats & breakdown if containers exist
               const statsContainerEl = document.getElementById('admin-stats-container');
-              if (statsContainerEl) {
-                statsContainerEl.innerHTML = '';
+              if(statsContainerEl){
+                statsContainerEl.innerHTML='';
                 statsContainerEl.appendChild(renderStats());
               }
-              const breakdownContainerEl = document.getElementById('admin-breakdown-container');
-              if (breakdownContainerEl) {
-                breakdownContainerEl.innerHTML = '';
+
+              const breakdownContainerEl=document.getElementById('admin-breakdown-container');
+              if(breakdownContainerEl){
+                breakdownContainerEl.innerHTML='';
                 breakdownContainerEl.appendChild(renderEventsBreakdown());
               }
             } else {

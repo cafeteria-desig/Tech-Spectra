@@ -158,7 +158,7 @@ export async function deleteRegistration(id:string):Promise<boolean>{
     return false;
   }
 
-  return Array.isArray(data)&&data.length>0;
+  return !error;
 }
 
 export async function getAllTeams(): Promise<Team[]> {
