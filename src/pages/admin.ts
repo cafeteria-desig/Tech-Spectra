@@ -411,24 +411,54 @@ function renderTable(): HTMLElement {
           if (type === 'team') {
             await deleteTeam(id);
             allRows = allRows.filter(r => !(r.type === 'team' && r.id === id));
+            applyFilters();
+            refreshContent();
+
+            // Re-render stats & breakdown if containers exist
+            const statsContainerEl = document.getElementById('admin-stats-container');
+            if (statsContainerEl) {
+              statsContainerEl.innerHTML = '';
+              statsContainerEl.appendChild(renderStats());
+            }
+            const breakdownContainerEl = document.getElementById('admin-breakdown-container');
+            if (breakdownContainerEl) {
+              breakdownContainerEl.innerHTML = '';
+              breakdownContainerEl.appendChild(renderEventsBreakdown());
+            }
           } else {
-            await deleteRegistration(id);
-            allRows = allRows.filter(r => !(r.type === 'single' && r.id === id));
-          }
+            console.log("ID sent to delete:", id);
+            const deleted = await deleteRegistration(id);
+            console.log("Deleted?", deleted);
 
-          applyFilters();
-          refreshContent();
+            if (deleted) {
+              allRows = allRows.filter(
+                (r) => !(r.type === 'single' && r.id === id)
+              );
 
-          // Re-render stats & breakdown if containers exist
-          const statsContainerEl = document.getElementById('admin-stats-container');
-          if (statsContainerEl) {
-            statsContainerEl.innerHTML = '';
-            statsContainerEl.appendChild(renderStats());
-          }
-          const breakdownContainerEl = document.getElementById('admin-breakdown-container');
-          if (breakdownContainerEl) {
-            breakdownContainerEl.innerHTML = '';
-            breakdownContainerEl.appendChild(renderEventsBreakdown());
+              applyFilters();
+              refreshContent();
+
+              // Re-render stats & breakdown if containers exist
+              const statsContainerEl = document.getElementById('admin-stats-container');
+              if (statsContainerEl) {
+                statsContainerEl.innerHTML = '';
+                statsContainerEl.appendChild(renderStats());
+              }
+              const breakdownContainerEl = document.getElementById('admin-breakdown-container');
+              if (breakdownContainerEl) {
+                breakdownContainerEl.innerHTML = '';
+                breakdownContainerEl.appendChild(renderEventsBreakdown());
+              }
+            } else {
+              alert("Registration was not deleted from Supabase");
+              btn.disabled = false;
+              btn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+                Delete
+              `;
+            }
           }
         } catch (err) {
           console.error('Error during deletion process:', err);
@@ -690,20 +720,23 @@ async function loadData(): Promise<void> {
       throw new Error('Could not load registrations or teams.');
     }
 
-    const mappedRegs: AdminRow[] = (regs as Registration[]).map((r) => ({
-      type: 'single',
-      id: r.id!,
-      display_name: r.full_name,
-      college_name: r.college_name,
-      email: r.email,
-      phone: r.phone,
-      events_selected: r.events_selected,
-      seat_number: r.seat_number,
-      id_card_url: r.id_card_url,
-      registered_at: r.registered_at,
-      hackathon_problem: r.hackathon_problem,
-      shark_tank_problem: r.shark_tank_problem,
-    }));
+    const mappedRegs: AdminRow[] = (regs as Registration[]).map((r) => {
+      console.log("Registration ID:", r.id);
+      return {
+        type: 'single',
+        id: r.id!,
+        display_name: r.full_name,
+        college_name: r.college_name,
+        email: r.email,
+        phone: r.phone,
+        events_selected: r.events_selected,
+        seat_number: r.seat_number,
+        id_card_url: r.id_card_url,
+        registered_at: r.registered_at,
+        hackathon_problem: r.hackathon_problem,
+        shark_tank_problem: r.shark_tank_problem,
+      };
+    });
 
     const mappedTeams: AdminRow[] = (teams as Team[]).map((t) => ({
       type: 'team',

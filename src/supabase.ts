@@ -142,18 +142,23 @@ export async function submitRegistration(
   }
 }
 
-export async function deleteRegistration(id: string): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('registrations')
-      .delete()
-      .eq('id', id);
+export async function deleteRegistration(id:string):Promise<boolean>{
+  console.log("Deleting registration id:",id);
+  const {data,error}=await supabase
+    .from('registrations')
+    .delete()
+    .eq('id',id)
+    .select();
 
-    if (error) throw error;
-  } catch (err) {
-    console.error('Failed to delete registration:', err);
-    throw new Error('Could not delete registration. Please try again.');
+  console.log("Deleted rows:",data);
+  console.log("Delete error:",error);
+
+  if(error){
+    console.error(error);
+    return false;
   }
+
+  return Array.isArray(data)&&data.length>0;
 }
 
 export async function getAllTeams(): Promise<Team[]> {
