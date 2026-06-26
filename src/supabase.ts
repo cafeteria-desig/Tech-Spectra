@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
-import type { Registration } from './types';
+import type { Registration, Team, TeamMember } from './types';
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn(
@@ -15,12 +15,22 @@ export const supabase = createClient(
 
 export async function getBookedSeats(): Promise<string[]> {
   try {
-    const { data, error } = await supabase
+    const { data: regData, error: regError } = await supabase
       .from('registrations')
       .select('seat_number');
 
-    if (error) throw error;
-    return (data ?? []).map((r: { seat_number: string }) => r.seat_number);
+    if (regError) throw regError;
+
+    const { data: memData, error: memError } = await supabase
+      .from('team_members')
+      .select('seat_number');
+
+    if (memError) throw memError;
+
+    const regSeats = (regData ?? []).map((r: { seat_number: string }) => r.seat_number);
+    const memSeats = (memData ?? []).map((m: { seat_number: string }) => m.seat_number);
+
+    return [...regSeats, ...memSeats];
   } catch (err) {
     console.error('Failed to fetch booked seats:', err);
     throw new Error('Could not load seat availability. Please refresh the page.');
@@ -57,14 +67,23 @@ export async function checkSeatAvailability(
   seatNumber: string,
 ): Promise<boolean> {
   try {
-    const { data, error } = await supabase
+    const { data: regData, error: regError } = await supabase
       .from('registrations')
       .select('id')
       .eq('seat_number', seatNumber)
       .maybeSingle();
 
-    if (error) throw error;
-    return !data;
+    if (regError) throw regError;
+    if (regData) return false;
+
+    const { data: memData, error: memError } = await supabase
+      .from('team_members')
+      .select('id')
+      .eq('seat_number', seatNumber)
+      .maybeSingle();
+
+    if (memError) throw memError;
+    return !memData;
   } catch (err) {
     console.error('Failed to check seat availability:', err);
     throw new Error('Could not verify seat availability. Please try again.');
@@ -125,5 +144,49 @@ export async function deleteRegistration(id: string): Promise<void> {
   } catch (err) {
     console.error('Failed to delete registration:', err);
     throw new Error('Could not delete registration. Please try again.');
+  }
+}
+
+export async function getAllTeams(): Promise<Team[]> {
+  try {
+    const { data: teamsData, error: teamsError } = await supabase
+      .from('teams')
+      .select('*')
+      .order('registered_at', { ascending: false });
+
+    if (teamsError) throw teamsError;
+
+    const { data: membersData, error: membersError } = await supabase
+      .from('team_members')
+      .select('*')
+      .order('registered_at', { ascending: true });
+
+    if (membersError) throw membersError;
+
+    const teams: Team[] = teamsData ?? [];
+    const members: TeamMember[] = membersData ?? [];
+
+    teams.forEach((team) => {
+      team.members = members.filter((m) => m.team_id === team.id);
+    });
+
+    return teams;
+  } catch (err) {
+    console.error('Failed to fetch teams:', err);
+    throw new Error('Could not load teams. Please try again.');
+  }
+}
+
+export async function deleteTeam(id: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('teams')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  } catch (err) {
+    console.error('Failed to delete team:', err);
+    throw new Error('Could not delete team. Please try again.');
   }
 }

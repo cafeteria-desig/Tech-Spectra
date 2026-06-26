@@ -1,5 +1,5 @@
-import { getAllRegistrations, deleteRegistration } from '../supabase';
-import type { Registration } from '../types';
+import { getAllRegistrations, deleteRegistration, getAllTeams, deleteTeam } from '../supabase';
+import type { TeamMember } from '../types';
 import { navigate } from '../router';
 import { stopParticles, startParticles } from '../particles';
 
@@ -15,8 +15,26 @@ type FilterType =
   | 'Instrumental Singing'
   | 'Audience';
 
-let registrations: Registration[] = [];
-let filteredRegistrations: Registration[] = [];
+interface AdminRow {
+  type: 'single' | 'team';
+  id: string;
+  display_name: string;
+  college_name: string;
+  email: string;
+  phone: string;
+  events_selected: string[];
+  seat_number: string;
+  id_card_url: string;
+  registered_at?: string;
+  hackathon_problem?: string;
+  shark_tank_problem?: string;
+  team_name?: string;
+  leader_name?: string;
+  members?: TeamMember[];
+}
+
+let allRows: AdminRow[] = [];
+let filteredRows: AdminRow[] = [];
 let searchQuery = '';
 let currentFilter: FilterType = 'all';
 let isLoading = true;
@@ -34,31 +52,13 @@ function formatDate(dateStr?: string): string {
   });
 }
 
-interface TeamInfo {
-  cleanName: string;
-  teamName: string;
-  role: string;
-}
-
-function getTeamInfo(fullName: string): TeamInfo | null {
-  const match = fullName.match(/^(.*?)\s*\(Team:\s*(.*?)\s*-\s*(Lead|Member\s*\d+)\)$/i);
-  if (match) {
-    return {
-      cleanName: match[1].trim(),
-      teamName: match[2].trim(),
-      role: match[3].trim(),
-    };
-  }
-  return null;
-}
-
 function getEventDay(eventName: string): number {
   const day1Events = ['Prompt War', 'Hackathon', 'Nukkad Natak (Street Play)'];
   return day1Events.includes(eventName) ? 1 : 2;
 }
 
 function applyFilters(): void {
-  let filtered = registrations;
+  let filtered = allRows;
 
   // Event day or specific competition/audience filter
   if (currentFilter === 'day1') {
@@ -78,21 +78,37 @@ function applyFilters(): void {
   // Search query
   if (searchQuery.trim()) {
     const q = searchQuery.toLowerCase().trim();
-    filtered = filtered.filter(
-      (r) =>
-        r.full_name.toLowerCase().includes(q) ||
-        r.email.toLowerCase().includes(q) ||
-        r.college_name.toLowerCase().includes(q) ||
-        r.seat_number.toLowerCase().includes(q) ||
-        r.phone.includes(q),
-    );
+    filtered = filtered.filter((r) => {
+      if (r.type === 'single') {
+        return (
+          r.display_name.toLowerCase().includes(q) ||
+          r.email.toLowerCase().includes(q) ||
+          r.college_name.toLowerCase().includes(q) ||
+          r.seat_number.toLowerCase().includes(q) ||
+          r.phone.includes(q)
+        );
+      } else {
+        const membersMatch = r.members?.some((m) =>
+          m.member_name.toLowerCase().includes(q) ||
+          m.seat_number.toLowerCase().includes(q)
+        );
+        return (
+          r.team_name?.toLowerCase().includes(q) ||
+          r.leader_name?.toLowerCase().includes(q) ||
+          r.email.toLowerCase().includes(q) ||
+          r.college_name.toLowerCase().includes(q) ||
+          r.phone.includes(q) ||
+          !!membersMatch
+        );
+      }
+    });
   }
 
-  filteredRegistrations = filtered;
+  filteredRows = filtered;
 }
 
 function exportCSV(): void {
-  const data = filteredRegistrations;
+  const data = filteredRows;
   if (data.length === 0) {
     alert('No registrations found for the current filter to export.');
     return;
@@ -106,65 +122,43 @@ function exportCSV(): void {
 
   const headers = [
     'S.No',
-    'Full Name',
-    'Team Name',
-    'Team Role',
-    'Team Members',
+    'Registration Type',
+    'Full Name / Team Name',
+    'Leader Name',
     'College / Institution',
     'Email',
     'Phone',
     'Events Selected',
-    'Seat Number',
+    'Seats Booked',
+    'Team Members Detail',
     'Hackathon Problem',
     'Shark Tank Problem',
-    'ID Card URL',
     'Registered At',
   ];
 
   const rows = data.map((r, i) => {
-    const teamInfo = getTeamInfo(r.full_name);
-    let displayName = r.full_name;
-    let teamName = '';
-    let teamRole = '';
-    let teamMembers = '';
-
-    if (teamInfo) {
-      displayName = teamInfo.cleanName;
-      teamName = teamInfo.teamName;
-      teamRole = teamInfo.role;
-
-      // Find all team members belonging to this team registration
-      const members = registrations
-        .filter((other) => {
-          const otherInfo = getTeamInfo(other.full_name);
-          return (
-            otherInfo &&
-            otherInfo.teamName.toLowerCase() === teamInfo.teamName.toLowerCase() &&
-            other.email.toLowerCase() === r.email.toLowerCase()
-          );
-        })
-        .map((other) => {
-          const otherInfo = getTeamInfo(other.full_name);
-          return otherInfo ? `${otherInfo.cleanName} (${otherInfo.role})` : other.full_name;
-        });
-
-      teamMembers = members.join('; ');
+    let typeStr = r.type === 'single' ? 'Single' : 'Team';
+    let nameStr = r.type === 'single' ? r.display_name : r.team_name;
+    let leaderStr = r.type === 'single' ? 'N/A' : r.leader_name;
+    let seatsStr = r.type === 'single' ? r.seat_number : r.members?.map(m => m.seat_number).join('; ');
+    let membersStr = '';
+    if (r.type === 'team') {
+      membersStr = r.members?.map(m => `${m.member_name} (${m.seat_number})`).join('; ') ?? '';
     }
 
     return [
       String(i + 1),
-      esc(displayName),
-      esc(teamName),
-      esc(teamRole),
-      esc(teamMembers),
+      esc(typeStr),
+      esc(nameStr),
+      esc(leaderStr),
       esc(r.college_name),
       esc(r.email),
       esc(r.phone),
       esc(r.events_selected.join('; ')),
-      esc(r.seat_number),
+      esc(seatsStr),
+      esc(membersStr),
       esc(r.hackathon_problem),
       esc(r.shark_tank_problem),
-      esc(r.id_card_url),
       esc(r.registered_at ? new Date(r.registered_at).toISOString() : ''),
     ];
   });
@@ -282,7 +276,7 @@ function renderTable(): HTMLElement {
       <th class="col-email">Email</th>
       <th class="col-phone">Phone</th>
       <th class="col-events">Events</th>
-      <th class="col-seat">Seat</th>
+      <th class="col-seat">Seat(s)</th>
       <th class="col-idcard">ID Card</th>
       <th class="col-problems">Problems</th>
       <th class="col-date">Registered</th>
@@ -293,7 +287,7 @@ function renderTable(): HTMLElement {
 
   const tbody = document.createElement('tbody');
 
-  if (filteredRegistrations.length === 0) {
+  if (filteredRows.length === 0) {
     const emptyRow = document.createElement('tr');
     emptyRow.className = 'admin-empty-row';
     emptyRow.innerHTML = `
@@ -306,35 +300,45 @@ function renderTable(): HTMLElement {
     `;
     tbody.appendChild(emptyRow);
   } else {
-    filteredRegistrations.forEach((reg, index) => {
+    filteredRows.forEach((reg, index) => {
       const row = document.createElement('tr');
       row.className = 'admin-table-row';
 
-      const teamInfo = getTeamInfo(reg.full_name);
-      let displayName = reg.full_name;
+      let displayName = reg.display_name;
       let teamHtml = '<span class="admin-no-id">—</span>';
+      let idCardHtml = '<span class="admin-no-id">—</span>';
+      let seatBadgeHtml = '';
 
-      if (teamInfo) {
-        displayName = teamInfo.cleanName;
-        
-        // Get all members of the same team registration
-        const members = registrations
-          .filter((other) => {
-            const otherInfo = getTeamInfo(other.full_name);
-            return (
-              otherInfo &&
-              otherInfo.teamName.toLowerCase() === teamInfo.teamName.toLowerCase() &&
-              other.email.toLowerCase() === reg.email.toLowerCase()
-            );
-          })
-          .map((other) => {
-            const otherInfo = getTeamInfo(other.full_name);
-            return otherInfo ? `${otherInfo.cleanName} (${otherInfo.role})` : other.full_name;
-          });
-
+      if (reg.type === 'single') {
+        seatBadgeHtml = `<span class="admin-seat-badge">${reg.seat_number}</span>`;
+        if (reg.id_card_url) {
+          idCardHtml = `<button class="admin-id-card-btn" data-url="${reg.id_card_url}" data-name="${displayName}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+              </svg>
+              View ID
+            </button>`;
+        }
+      } else {
+        displayName = `Leader: ${reg.leader_name}`;
         teamHtml = `
-          <div class="admin-team-badge">Team: ${teamInfo.teamName} (${teamInfo.role})</div>
-          <div class="admin-team-members" title="${members.join(', ')}">${members.join(', ')}</div>
+          <div class="admin-team-badge">Team: ${reg.team_name}</div>
+          <div class="admin-team-members">
+            ${reg.members?.map(m => `<div>${m.member_name} (${m.seat_number})</div>`).join('')}
+          </div>
+        `;
+        seatBadgeHtml = (reg.members ?? [])
+          .map(m => `<span class="admin-seat-badge" style="margin: 2px;">${m.seat_number}</span>`)
+          .join(' ');
+        
+        idCardHtml = `
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${reg.members?.map(m => `
+              <button class="admin-id-card-btn" data-url="${m.id_card_url}" data-name="${m.member_name}" style="padding: 2px 6px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;">
+                ID: ${m.member_name}
+              </button>
+            `).join('')}
+          </div>
         `;
       }
 
@@ -354,15 +358,6 @@ function renderTable(): HTMLElement {
         );
       }
 
-      const idCardHtml = reg.id_card_url
-        ? `<button class="admin-id-card-btn" data-url="${reg.id_card_url}" data-name="${displayName}">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-            </svg>
-            View ID
-          </button>`
-        : '<span class="admin-no-id">—</span>';
-
       row.innerHTML = `
         <td class="col-sno">${index + 1}</td>
         <td class="col-name"><strong>${displayName}</strong></td>
@@ -371,12 +366,12 @@ function renderTable(): HTMLElement {
         <td class="col-email"><a href="mailto:${reg.email}" class="admin-email-link">${reg.email}</a></td>
         <td class="col-phone"><a href="tel:${reg.phone}" class="admin-phone-link">${reg.phone}</a></td>
         <td class="col-events">${eventsHtml}</td>
-        <td class="col-seat"><span class="admin-seat-badge">${reg.seat_number}</span></td>
+        <td class="col-seat">${seatBadgeHtml}</td>
         <td class="col-idcard">${idCardHtml}</td>
         <td class="col-problems">${problemsHtml.length > 0 ? problemsHtml.join('') : '<span class="admin-no-id">—</span>'}</td>
         <td class="col-date">${formatDate(reg.registered_at)}</td>
         <td class="col-actions">
-          <button class="admin-delete-btn" data-id="${reg.id}" data-name="${displayName}">
+          <button class="admin-delete-btn" data-id="${reg.id}" data-type="${reg.type}" data-name="${reg.type === 'single' ? displayName : reg.team_name}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
             </svg>
@@ -399,32 +394,28 @@ function renderTable(): HTMLElement {
     // Delete button handler
     const deleteBtn = target.closest('.admin-delete-btn') as HTMLElement | null;
     if (deleteBtn) {
-      console.log('Delete button clicked!', deleteBtn);
       e.preventDefault();
       e.stopPropagation();
       const id = deleteBtn.dataset.id;
       const name = deleteBtn.dataset.name;
+      const type = deleteBtn.dataset.type as 'single' | 'team';
 
-      console.log('Delete target data:', { id, name });
+      if (!id || !name) return;
 
-      if (!id || !name) {
-        console.warn('Missing id or name for deletion target.');
-        return;
-      }
-
-      console.log('Triggering custom confirm modal...');
       showDeleteConfirmModal(name, async () => {
         try {
           const btn = deleteBtn as HTMLButtonElement;
           btn.disabled = true;
           btn.innerHTML = 'Deleting...';
 
-          console.log('Calling deleteRegistration with ID:', id);
-          await deleteRegistration(id);
-          console.log('deleteRegistration successful!');
+          if (type === 'team') {
+            await deleteTeam(id);
+            allRows = allRows.filter(r => !(r.type === 'team' && r.id === id));
+          } else {
+            await deleteRegistration(id);
+            allRows = allRows.filter(r => !(r.type === 'single' && r.id === id));
+          }
 
-          // Reload local data and refresh
-          registrations = registrations.filter(r => r.id !== id);
           applyFilters();
           refreshContent();
 
@@ -475,36 +466,32 @@ function renderStats(): HTMLElement {
   const stats = document.createElement('div');
   stats.className = 'admin-stats';
 
-  const total = registrations.length;
-  const uniqueEmails = new Set(registrations.map((r) => r.email)).size;
-  const seatsBooked = registrations.length;
-  const eventsCount: Record<string, number> = {};
-  registrations.forEach((r) => {
-    r.events_selected.forEach((e) => {
-      eventsCount[e] = (eventsCount[e] || 0) + 1;
-    });
-  });
+  const totalSingles = allRows.filter(r => r.type === 'single').length;
+  const totalTeams = allRows.filter(r => r.type === 'team').length;
+  const totalParticipants = allRows.reduce((acc, r) => acc + (r.type === 'team' ? (r.members?.length ?? 0) : 1), 0);
+  const uniqueEmails = new Set(allRows.map((r) => r.email)).size;
+  const seatsBooked = totalParticipants;
 
   stats.innerHTML = `
     <div class="admin-stat-card">
       <div class="admin-stat-icon">👥</div>
-      <div class="admin-stat-value">${total}</div>
-      <div class="admin-stat-label">Total Registrations</div>
+      <div class="admin-stat-value">${totalSingles + totalTeams}</div>
+      <div class="admin-stat-label">Total Groups (${totalSingles} S / ${totalTeams} T)</div>
     </div>
     <div class="admin-stat-card">
       <div class="admin-stat-icon">📧</div>
       <div class="admin-stat-value">${uniqueEmails}</div>
-      <div class="admin-stat-label">Unique Participants</div>
+      <div class="admin-stat-label">Unique Email IDs</div>
     </div>
     <div class="admin-stat-card">
       <div class="admin-stat-icon">💺</div>
       <div class="admin-stat-value">${seatsBooked}</div>
-      <div class="admin-stat-label">Seats Booked</div>
+      <div class="admin-stat-label">Total Seats Booked</div>
     </div>
     <div class="admin-stat-card">
       <div class="admin-stat-icon">🏆</div>
-      <div class="admin-stat-value">${Object.keys(eventsCount).length}</div>
-      <div class="admin-stat-label">Events with Registrations</div>
+      <div class="admin-stat-value">${totalParticipants}</div>
+      <div class="admin-stat-label">Total Participants</div>
     </div>
   `;
 
@@ -521,9 +508,10 @@ function renderEventsBreakdown(): HTMLElement {
   container.appendChild(title);
 
   const eventsCount: Record<string, number> = {};
-  registrations.forEach((r) => {
+  allRows.forEach((r) => {
+    const count = r.type === 'team' ? (r.members?.length ?? 0) : 1;
     r.events_selected.forEach((e) => {
-      eventsCount[e] = (eventsCount[e] || 0) + 1;
+      eventsCount[e] = (eventsCount[e] || 0) + count;
     });
   });
 
@@ -656,9 +644,9 @@ function refreshContent(): void {
   if (!isLoading) {
     const resultsInfo = document.createElement('div');
     resultsInfo.className = 'admin-results-info';
-    const showing = filteredRegistrations.length;
-    const total = registrations.length;
-    resultsInfo.textContent = `Showing ${showing} of ${total} registration${total !== 1 ? 's' : ''}`;
+    const showing = filteredRows.length;
+    const total = allRows.length;
+    resultsInfo.textContent = `Showing ${showing} of ${total} record${total !== 1 ? 's' : ''}`;
     contentArea.appendChild(resultsInfo);
   }
 
@@ -674,12 +662,55 @@ async function loadData(): Promise<void> {
       return;
     }
 
-    registrations = await getAllRegistrations();
+    const [regs, teams] = await Promise.all([
+      getAllRegistrations(),
+      getAllTeams(),
+    ]);
+
+    const mappedRegs: AdminRow[] = regs.map((r) => ({
+      type: 'single',
+      id: r.id!,
+      display_name: r.full_name,
+      college_name: r.college_name,
+      email: r.email,
+      phone: r.phone,
+      events_selected: r.events_selected,
+      seat_number: r.seat_number,
+      id_card_url: r.id_card_url,
+      registered_at: r.registered_at,
+      hackathon_problem: r.hackathon_problem,
+      shark_tank_problem: r.shark_tank_problem,
+    }));
+
+    const mappedTeams: AdminRow[] = teams.map((t) => ({
+      type: 'team',
+      id: t.id!,
+      display_name: `Team: ${t.team_name} (Leader: ${t.leader_name})`,
+      college_name: t.college_name,
+      email: t.leader_email,
+      phone: t.leader_phone,
+      events_selected: t.events_selected,
+      seat_number: t.members?.map(m => m.seat_number).join(', ') ?? '',
+      id_card_url: t.members?.[0]?.id_card_url ?? '',
+      registered_at: t.registered_at,
+      hackathon_problem: t.hackathon_problem,
+      shark_tank_problem: t.shark_tank_problem,
+      team_name: t.team_name,
+      leader_name: t.leader_name,
+      members: t.members,
+    }));
+
+    allRows = [...mappedRegs, ...mappedTeams].sort((a, b) => {
+      const dateA = a.registered_at ? new Date(a.registered_at).getTime() : 0;
+      const dateB = b.registered_at ? new Date(b.registered_at).getTime() : 0;
+      return dateB - dateA;
+    });
+
     applyFilters();
   } catch (err) {
-    console.error('Failed to load registrations:', err);
-    registrations = [];
-    filteredRegistrations = [];
+    console.error('Failed to load data:', err);
+    allRows = [];
+    filteredRows = [];
   } finally {
     isLoading = false;
     refreshContent();
@@ -805,8 +836,8 @@ export async function renderAdmin(): Promise<HTMLElement> {
 }
 
 export function cleanupAdmin(): void {
-  registrations = [];
-  filteredRegistrations = [];
+  allRows = [];
+  filteredRows = [];
   searchQuery = '';
   currentFilter = 'all';
   isLoading = true;

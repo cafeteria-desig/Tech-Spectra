@@ -3,6 +3,7 @@ import {
   uploadIdCard,
   checkSeatAvailability,
   submitRegistration,
+  supabase,
 } from '../supabase';
 import { EVENTS, SEAT_ROWS, SEAT_COLS, TOTAL_SEATS } from '../config';
 import { navigate } from '../router';
@@ -327,42 +328,78 @@ async function handleSubmit(e: Event): Promise<void> {
     });
     const idCardUrls = await Promise.all(uploadPromises);
 
-    // Submit registration for all members
-    const registrationPromises = [];
+    // Submit registration
+    if (formState.registrationType === 'single') {
+      await submitRegistration({
+        full_name: formState.fullName.trim(),
+        college_name: formState.collegeName.trim(),
+        email: formState.email.trim(),
+        phone: formState.phone.trim(),
+        id_card_url: idCardUrls[0],
+        events_selected: formState.selectedEvents,
+        seat_number: formState.selectedSeats[0],
+        hackathon_problem: formState.selectedEvents.includes('Hackathon') ? formState.hackathonProblem.trim() : undefined,
+        shark_tank_problem: formState.selectedEvents.includes('Shark Tank') ? formState.sharkTankProblem.trim() : undefined,
+      });
+    } else {
+      // 1. Insert into teams table
+      const teamPayload = {
+        team_name: formState.teamName.trim(),
+        leader_name: formState.fullName.trim(),
+        leader_email: formState.email.trim(),
+        leader_phone: formState.phone.trim(),
+        college_name: formState.collegeName.trim(),
+        events_selected: formState.selectedEvents,
+        hackathon_problem: formState.selectedEvents.includes('Hackathon') ? formState.hackathonProblem.trim() : undefined,
+        shark_tank_problem: formState.selectedEvents.includes('Shark Tank') ? formState.sharkTankProblem.trim() : undefined,
+      };
 
-    // 1. Lead member
-    const leadSuffix = formState.registrationType === 'team' ? ` (Team: ${formState.teamName.trim()} - Lead)` : '';
-    registrationPromises.push(submitRegistration({
-      full_name: formState.fullName.trim() + leadSuffix,
-      college_name: formState.collegeName.trim(),
-      email: formState.email.trim(),
-      phone: formState.phone.trim(),
-      id_card_url: idCardUrls[0],
-      events_selected: formState.selectedEvents,
-      seat_number: formState.selectedSeats[0],
-      hackathon_problem: formState.selectedEvents.includes('Hackathon') ? formState.hackathonProblem.trim() : undefined,
-      shark_tank_problem: formState.selectedEvents.includes('Shark Tank') ? formState.sharkTankProblem.trim() : undefined,
-    }));
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .insert([teamPayload])
+        .select('id')
+        .single();
 
-    // 2. Team members
-    if (formState.registrationType === 'team') {
-      for (let i = 2; i <= formState.teamSize; i++) {
-        const memberName = (formState.teamMembers[i - 2] || '').trim();
-        registrationPromises.push(submitRegistration({
-          full_name: memberName + ` (Team: ${formState.teamName.trim()} - Member ${i})`,
-          college_name: formState.collegeName.trim(),
-          email: formState.email.trim(),
-          phone: formState.phone.trim(),
-          id_card_url: idCardUrls[i - 1],
-          events_selected: formState.selectedEvents,
-          seat_number: formState.selectedSeats[i - 1],
-          hackathon_problem: formState.selectedEvents.includes('Hackathon') ? formState.hackathonProblem.trim() : undefined,
-          shark_tank_problem: formState.selectedEvents.includes('Shark Tank') ? formState.sharkTankProblem.trim() : undefined,
-        }));
+      if (teamError) throw teamError;
+      if (!teamData) throw new Error('Failed to create team record.');
+
+      const teamId = teamData.id;
+
+      // 2. Insert members into team_members table
+      try {
+        const memberPayloads = [];
+
+        // Leader is member 1
+        memberPayloads.push({
+          team_id: teamId,
+          member_name: formState.fullName.trim(),
+          member_email: formState.email.trim(),
+          id_card_url: idCardUrls[0],
+          seat_number: formState.selectedSeats[0],
+        });
+
+        // Other members
+        for (let i = 2; i <= formState.teamSize; i++) {
+          memberPayloads.push({
+            team_id: teamId,
+            member_name: (formState.teamMembers[i - 2] || '').trim(),
+            member_email: formState.email.trim(),
+            id_card_url: idCardUrls[i - 1],
+            seat_number: formState.selectedSeats[i - 1],
+          });
+        }
+
+        const { error: membersError } = await supabase
+          .from('team_members')
+          .insert(memberPayloads);
+
+        if (membersError) throw membersError;
+      } catch (insertError) {
+        // Rollback: delete the team (which cascades to team_members)
+        await supabase.from('teams').delete().eq('id', teamId);
+        throw insertError;
       }
     }
-
-    await Promise.all(registrationPromises);
 
     // Show success modal
     showSuccessModal();

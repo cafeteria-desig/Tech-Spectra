@@ -12,6 +12,30 @@ export interface Registration {
   registered_at?: string;
 }
 
+export interface TeamMember {
+  id?: string;
+  team_id?: string;
+  member_name: string;
+  member_email: string;
+  id_card_url: string;
+  seat_number: string;
+  registered_at?: string;
+}
+
+export interface Team {
+  id?: string;
+  team_name: string;
+  leader_name: string;
+  leader_email: string;
+  leader_phone: string;
+  college_name: string;
+  events_selected: string[];
+  hackathon_problem?: string;
+  shark_tank_problem?: string;
+  registered_at?: string;
+  members?: TeamMember[];
+}
+
 export interface Seat {
   id: string; // e.g. "A1", "B5"
   booked: boolean;
